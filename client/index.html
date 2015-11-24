@@ -29,7 +29,7 @@
     </style>
     <script>
       function ChatController($scope) {
-        var socket = io.connect();
+        var socket = io.connect('http://mancala-kramin.rhcloud.com/:8000');
         window.socket = socket;
 
         $scope.messages = [];
