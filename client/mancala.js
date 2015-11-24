@@ -219,7 +219,7 @@ var Board = {
     capturefrom: -1,
     captureto: -1,
     play: function(player, potnum){
-        if (this.ready && this.currplayer == player && ((player == 1 && potnum>=0 && potnum<6) || (player == -1 && potnum>=7 && potnum<13))){
+        if ((!this.players[player].local || this.ready) && this.currplayer == player && ((player == 1 && potnum>=0 && potnum<6) || (player == -1 && potnum>=7 && potnum<13))){
             var beans = this.pots[potnum].beans;
             if (beans.length == 0) {return -1;} // invalid
             var index = potnum;
