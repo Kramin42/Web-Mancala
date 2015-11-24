@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" ng-app>
+  <head>
+    <title>Mancala</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://bootswatch.com/slate/bootstrap.min.css">
+    <style>
+      body {
+        padding-top: 80px;
+      }
+      .popover {
+        border-color: green;
+      }
+      .popover.bottom>.arrow:after {
+        border-bottom-color: green;
+      }
+      
+      .playerlist {
+        cursor: pointer; cursor: hand;
+      }
+      
+      .playerlist:hover {
+        -moz-transform: translate(10px, 0px);
+        -ms-transform: translate(10px, 0px);
+        -o-transform: translate(10px, 0px);
+        -webkit-transform: translate(10px, 0px);
+        transform: translate(10px, 0px);
+      }
+    </style>
+    <script>
+      function ChatController($scope) {
+        var socket = io.connect();
+        window.socket = socket;
+
+        $scope.messages = [];
+        $scope.roster = [];
+        $scope.name = '';
+        $scope.text = '';
+
+        socket.on('connect', function () {
+          window.playerID = parseInt(Math.random()*1000000);
+          console.log('ID: '+window.playerID);
+          $scope.setName();
+        });
+
+        socket.on('message', function (msg) {
+          //console.log('message data '+msg);
+          $scope.messages.push(msg);
+          $scope.$apply();
+          var out = document.getElementById("chatbox");
+          // allow 1px inaccuracy by adding 1
+          var isScrolledToBottom = out.scrollHeight - out.clientHeight <= out.scrollTop + 50;
+          //console.log(out.scrollHeight - out.clientHeight)
+          //console.log(out.scrollTop)
+          if(isScrolledToBottom)
+            out.scrollTop = out.scrollHeight - out.clientHeight;
+        });
+
+        socket.on('roster', function (data) {
+          //console.log('roster data '+data.name);
+          var names = [];
+          var IDs = [];
+          data.push({name:'EasyAI', ID:-1});
+          data.push({name:'MediumAI', ID:-1});
+          data.push({name:'HardAI', ID:-1});
+          data.push({name:'ImpossibleAI', ID:-1});
+          for (var d in data) {
+            //console.log('roster data '+data[d].name);
+            names.push(data[d].name);
+            IDs.push(data[d].ID);
+          }
+          $scope.roster = names;
+          $scope.IDs = IDs;
+          $scope.players = data;
+          
+          $scope.$apply();
+        });
+        
+        socket.on('mancalamove', function(move) {
+          /*global remotePlay*/
+          if (move.ID!=window.playerID){
+            remotePlay(move.ID, move.pot);
+            console.log(window.playerID+" remotePlay "+move.ID+', '+move.pot);
+          }
+        });
+        
+        socket.on('mancalacreate', function(game) {
+          var localPlayer = 1;
+          if (window.playerID == game.secondPlayerID){
+            localPlayer = -1;
+          }
+          console.log("create game "+game.firstPlayerName+' '+game.firstPlayerID+' '+game.secondPlayerName+' '+game.secondPlayerID+' '+localPlayer);
+          /*global createGame*/
+          createGame(game.firstPlayerName, game.firstPlayerID, game.secondPlayerName, game.secondPlayerID, localPlayer, game.starter);
+        });
+
+        $scope.send = function send() {
+          console.log('Sending message:', $scope.text);
+          socket.emit('message', $scope.text);
+          $scope.text = '';
+          var out = document.getElementById("chatbox");
+          out.scrollTop = out.scrollHeight - out.clientHeight;
+        };
+
+        $scope.setName = function setName() {
+          socket.emit('identify', {name: $scope.name, ID: window.playerID});
+          if ($scope.name!='')
+            $('#namebox').popover('hide');
+          else
+            $('#namebox').popover('show');
+        };
+        
+        $scope.requestGame = function requestGame(otherName, otherID) {
+          if (otherID==window.playerID){return;}
+          console.log("challenged: "+otherID);
+          //var otherName = $.grep($scope.players, function(p){ return p.ID == otherID; })[0].name;
+          console.log('challenged '+otherName);
+          socket.emit('mancalachallenge', {myName: $scope.name, myID: window.playerID, otherName: otherName, otherID: otherID});
+        }
+      }
+      
+      function sendMove(ID, pot){
+        window.socket.emit('mancaladomove', {ID: ID, pot: pot});
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container" ng-controller="ChatController">
+      <div class="navbar navbar-fixed-top navbar-inverse">
+        <div class="navbar-inner">
+          <a href="#" class="navbar-brand">Mancala</a>
+          <div class="pull-right">
+            <form class="navbar-form">
+                <input id="namebox" data-placement="bottom" type="text" class="form-control" ng-model="name" ng-change="setName()" placeholder="Your Name">
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-12 col-md-3">
+          <ul class="nav nav-list well">
+            <li><h4 class="list-group-item-heading">Players</h4></li>
+            <li class="nav-divider"></li>
+            <li class="playerlist" ng-repeat="player in players" ng-bind="player.name" ng-attr-id="player.ID" ng-click="requestGame(player.name, player.ID)"></li>
+          </ul>
+          <div style="overflow-y: auto; height: 400px" id="chatbox">
+          <table class="table table-striped">
+            <tbody>
+              <tr ng-repeat="msg in messages">
+                <td class="col-sm-1" ng-bind="msg.name"></td>
+                <td class="col-sm-7" ng-bind="msg.text"></td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+            <form ng-submit="send()" class="">
+              <!--<div class="col-md-2"><input type="text" class="input-block-level" ng-model="name" ng-change="setName()" placeholder="Your Name"></div>-->
+              <!--<div class="input-append col-md-7">-->
+              <!--  <input type="text" class="col-md-5 form-control" ng-model="text" placeholder="Message">-->
+              <!--  <input type="submit" class="col-md-2 btn btn-primary" value="Send" ng-disabled="!text">-->
+              <!--</div>-->
+              <div class="input-group">
+                <input type="text" class="form-control" placeholder="Message" ng-model="text">
+                <div class="input-group-btn">
+                  <button class="btn btn-default" type="submit"><i class="glyphicon glyphicon-chevron-right"></i></button>
+                </div>
+              </div>
+            </form>
+        </div>
+        <div class="col-sm-12 col-md-9">
+          <canvas id="mancala" width="800" height="600" style="border-width: 3px; border-style: solid; border-color: #1F2328 #2B2F34 #2F3338 #23272C;"></canvas>
+        </div>
+      </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/angular.min.js"></script>
+    <script src="/mancala.js"></script>
+    <script type="text/javascript">
+      $(window).load(function(){
+        $('#namebox').popover({ placement:"bottom",trigger:"manual",template: '<div class="popover"><div class="arrow"></div><div class="popover-inner"><div class="popover-content"><p></p></div></div></div>',content:"Type a Nickname here!"});
+      });
+    </script>
+  </body>
+</html>

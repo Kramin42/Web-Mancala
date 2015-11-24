@@ -1,0 +1,13 @@
+{
+  "name": "web-mancala",
+  "version": "0.0.0",
+  "description": "Multiplayer Mancala server",
+  "main": "server.js",
+  "repository": "",
+  "author": "Cameron Dykstra <dykstra.cameron@gmail.com>",
+  "dependencies": {
+    "async": "~0.2.8",
+    "express": "~3.2.4",
+    "socket.io": "~0.9.14"
+  }
+}
