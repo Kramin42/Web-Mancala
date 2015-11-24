@@ -17,6 +17,8 @@ var express = require('express');
 //  * `port` - The HTTP port to listen on. If `process.env.PORT` is set, _it overrides this value_.
 //
 var router = express();
+router.set('port', process.env.OPENSHIFT_NODEJS_PORT || process.env.PORT || 3002);
+router.set('ip', process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1");
 var server = http.createServer(router);
 var io = socketio.listen(server);
 
